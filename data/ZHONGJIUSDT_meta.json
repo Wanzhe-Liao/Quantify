@@ -1,0 +1,10 @@
+{
+  "symbol": "ZHONGJIUSDT",
+  "contractType": "TRADIFI_PERPETUAL",
+  "status": "TRADING",
+  "underlyingType": "HK_EQUITY",
+  "tick_size": 0.01,
+  "step_size": 0.01,
+  "onboard_ms": 1786672800000,
+  "data_source": "binance_fapi"
+}

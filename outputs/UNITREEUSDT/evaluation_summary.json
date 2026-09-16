@@ -1,0 +1,58 @@
+{
+  "development": {
+    "n_windows": 24,
+    "total_net_pnl": -0.06286940290794973,
+    "total_return_pct": -2.6195584544979056e-06,
+    "mean_return_pct": -2.6195584544979107e-06,
+    "median_return_pct": 1.335959412642751e-05,
+    "win_rate": 0.5,
+    "profit_factor": 0.9723393685671129,
+    "sharpe_like": -0.009197471361355515,
+    "t_stat": -0.04505822351836473,
+    "max_drawdown_pct": -0.0011303499153525465,
+    "worst_window_net_pnl": -0.7348336280774674,
+    "worst_window_start": "2026-08-24 07:00:00+00:00",
+    "best_window_net_pnl": 0.6340616554311964,
+    "best_window_start": "2026-08-26 07:00:00+00:00",
+    "bootstrap_ci95_mean_return": [
+      -0.00011766734993312039,
+      0.00010451783423749124
+    ],
+    "total_funding_pnl": -0.8226453229071089,
+    "total_gross_grid_pnl": 8.887199999999954,
+    "total_inventory_liq_pnl": -6.647400000000029,
+    "total_fees": 1.17653333,
+    "total_slippage_cost": 0.30349075000000003
+  },
+  "evaluation": {
+    "n_windows": 16,
+    "total_net_pnl": -1.8108826040663644,
+    "total_return_pct": -0.00011318016275414778,
+    "mean_return_pct": -0.00011318016275414776,
+    "median_return_pct": 6.960149999997612e-06,
+    "win_rate": 0.5,
+    "profit_factor": 0.4093046265140463,
+    "sharpe_like": -0.2573108940010942,
+    "t_stat": -1.0292435760043768,
+    "max_drawdown_pct": -0.00158049508455671,
+    "worst_window_net_pnl": -1.3782909373009034,
+    "worst_window_start": "2026-09-10 07:00:00+00:00",
+    "best_window_net_pnl": 0.36258740000027956,
+    "best_window_start": "2026-09-15 07:00:00+00:00",
+    "bootstrap_ci95_mean_return": [
+      -0.0003430635579465484,
+      7.055852031068424e-05
+    ],
+    "total_funding_pnl": -0.04688152406709081,
+    "total_gross_grid_pnl": 1.4703000000000022,
+    "total_inventory_liq_pnl": -2.6285000000000225,
+    "total_fees": 0.39864833000000005,
+    "total_slippage_cost": 0.20715275,
+    "best_dev_parameters": {
+      "spacing": 0.004,
+      "range_pct": 0.01,
+      "levels": 10,
+      "max_inventory_pct": 0.25
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "symbol": "UNITREEUSDT",
+  "contractType": "TRADIFI_PERPETUAL",
+  "status": "TRADING",
+  "underlyingType": "CN_EQUITY",
+  "tick_size": 0.01,
+  "step_size": 0.01,
+  "onboard_ms": 1787107500000,
+  "data_source": "binance_fapi"
+}

@@ -1,0 +1,55 @@
+# Grid backtest: Binance TradFi perpetuals during underlying market closure.
+data:
+  klines: data/{symbol}_1m.parquet
+  funding: data/{symbol}_funding.parquet
+  meta: data/{symbol}_meta.json
+
+# Underlying market definitions. Sessions are local times, Mon-Fri unless noted.
+# holidays: explicit YYYY-MM-DD list of full-day closures for the market.
+symbols:
+  ZHONGJIUSDT:
+    market: HKEX            # 中际旭创 perpetual, Binance underlying type: HK_EQUITY
+    timezone: Asia/Hong_Kong
+    sessions:
+      - ["09:30", "12:00"]
+      - ["13:00", "16:00"]
+    holidays: []            # no HKEX full-day holidays inside 2026-08-14..2026-09-16
+  UNITREEUSDT:
+    market: SSE             # 宇树科技 perpetual, Binance underlying type: CN_EQUITY
+    timezone: Asia/Shanghai
+    sessions:
+      - ["09:30", "11:30"]
+      - ["13:00", "15:00"]
+    holidays: []            # no SSE full-day holidays inside 2026-08-14..2026-09-16
+  TSLAUSDT:
+    market: NASDAQ
+    timezone: America/New_York
+    sessions:
+      - ["09:30", "16:00"]
+    holidays:
+      - "2026-09-07"        # Labor Day
+      - "2026-11-26"        # Thanksgiving
+
+account:
+  initial_capital: 1000.0
+
+fees:
+  maker_fee: 0.0002         # 2 bps default; sweep 0 / 1bp / 2bp in robustness
+  taker_fee: 0.0005         # 5 bps
+
+grid:
+  grid_spacing_pct: [0.001, 0.002, 0.004]
+  range_pct: [0.01, 0.02]
+  levels_each_side: [5, 10]
+  max_inventory_pct: [0.25, 0.50]
+
+execution:
+  mode: conservative        # optimistic | conservative
+  exit_slippage_bps: 5      # default for headline results; sweep [0,2,5,10] in robustness
+  fill_drop_prob: 0.0       # fraction of theoretical maker fills randomly dropped
+  seed: 7
+
+experiment:
+  dev_fraction: 0.6         # first 60% of windows (by time) = development
+  bootstrap_iters: 2000
+  min_bars_per_window: 10   # skip windows with less kline coverage

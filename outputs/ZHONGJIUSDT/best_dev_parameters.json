@@ -1,0 +1,6 @@
+{
+  "spacing": 0.004,
+  "range_pct": 0.01,
+  "levels": 10,
+  "max_inventory_pct": 0.25
+}
