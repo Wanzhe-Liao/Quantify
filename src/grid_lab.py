@@ -1,14 +1,10 @@
 """Causal paired-rung grid laboratory. Research only; no order routing.
 
-Cash, inventory and funding are netted as a one-way futures account. Gross
-virtual inventory is additionally capped. At most one fill per rung per
-minute; newly armed exits cannot fill in that minute. Post-only orders that
-would cross the last observed price are rejected and retried when passive.
-
-Two OHLC side orderings are replayed from the same state. The adverse model
-keeps the lower liquidation value; this is NOT a lower bound on all tick
-paths. Stops observe completed-minute equity and execute at the NEXT open.
-Scheduled end liquidation executes at the final minute's OPEN.
+Net cash/inventory/funding with an additional gross virtual inventory cap.
+One fill per rung per minute; new orders must be passive to the last observed
+price. Two OHLC side orderings are replayed; adverse keeps the lower liquidation
+value, NOT a proven bound on all tick paths. Stops execute next minute open;
+scheduled exits execute at the final minute open. Held exit targets never move.
 """
 from __future__ import annotations
 from dataclasses import asdict, dataclass
@@ -53,12 +49,12 @@ class Candidate:
 
 
 def candidate_registry():
-    """Frozen search space, enumerated before evaluating new results.
+    """32 families x 3 spacings x 2 rung counts; no outcome-driven expansion.
 
-    anchor: 0 initial, 1 EMA30, 2 EMA120, 3 VWAP60.
-    volscale: 1 ATR, 2 return standard deviation.
-    direction: 1 long, -1 short, 2 momentum, -2 contrarian.
-    gate: 1 drift, 2 efficiency, 3 minimum activity.
+    anchor: initial/EMA30/EMA120/VWAP60 = 0/1/2/3.
+    volscale: ATR/return standard deviation = 1/2.
+    direction: long/short/momentum/contrarian = 1/-1/2/-2.
+    gate: drift/efficiency/minimum activity = 1/2/3.
     """
     families = [
         ('fixed', {}), ('geometric', {'geometry': 1}),
@@ -69,13 +65,13 @@ def candidate_registry():
         ('ema_refresh60', {'anchor': 1, 'refresh': 60}),
         ('atr_refresh', {'anchor': 1, 'refresh': 15, 'volscale': 1}),
         ('inventory_skew', {'anchor': 1, 'refresh': 15, 'invskew': 2}),
-        ('inventory_taper', {'taper': 1}), ('long_only', {'direction': 1}),
-        ('short_only', {'direction': -1}), ('momentum_side', {'direction': 2}),
-        ('contrarian_side', {'direction': -2}), ('momentum_skew', {'skew': .5}),
-        ('contrarian_skew', {'skew': -.5}), ('drift_guard', {'gate': 1}),
-        ('efficiency_guard', {'gate': 2}), ('activity_gate', {'gate': 3}),
-        ('time_taper', {'no_new_tail': .33}), ('loss_stop', {'stop': .002}),
-        ('take_profit', {'target': .001}),
+        ('inventory_taper', {'taper': 1, 'refresh': 1}),
+        ('long_only', {'direction': 1}), ('short_only', {'direction': -1}),
+        ('momentum_side', {'direction': 2}), ('contrarian_side', {'direction': -2}),
+        ('momentum_skew', {'skew': .5}), ('contrarian_skew', {'skew': -.5}),
+        ('drift_guard', {'gate': 1}), ('efficiency_guard', {'gate': 2}),
+        ('activity_gate', {'gate': 3}), ('time_taper', {'no_new_tail': .33}),
+        ('loss_stop', {'stop': .002}), ('take_profit', {'target': .001}),
         ('trailing_profit', {'target': .001, 'trail': .0005}),
         ('breakout_stop', {'breakout': 1.5}), ('time_exit120', {'max_minutes': 120}),
         ('reset120', {'reset': 120}),
@@ -100,8 +96,8 @@ def _spacing(ref, atr, rv, base, mode, fee, tick):
 @njit(cache=True)
 def _execute(state, held, size, entry, lower, upper, directions, order,
              eligible, p, cap, fee, step, min_notional, volume_budget):
-    # state: cash, net qty, gross qty, cycles pnl, funding, maker fees,
-    # taker fees, slippage, fill count, cycle count, turnover.
+    # cash, net qty, gross qty, cycle pnl, funding, maker fee, taker fee,
+    # slippage, fills, cycles, turnover.
     st = state.copy()
     hh, qq, ee = held.copy(), size.copy(), entry.copy()
     remaining = volume_budget
@@ -157,9 +153,9 @@ def _flatten(st, held, size, entry, directions, mark, taker, slip):
 @njit(cache=True)
 def simulate(a, params, capital, tick, step, min_notional,
              maker, taker, slip_bps, participation, fill_drop, randoms, path_mode=0):
-    """Columns: O,H,L,C,V,prevC,EMA30,EMA120,VWAP60,ATR30,RV30,
-    ret30,efficiency30,settled_rate_times_mark. Features must be lagged.
-    path_mode: 0 adverse, 1 buys then sells, 2 sells then buys.
+    """O,H,L,C,V,prevC,EMA30,EMA120,VWAP60,ATR30,RV30,ret30,
+    efficiency30,settled_rate_times_mark. All signal features must be lagged.
+    path_mode: 0 adverse, 1 buys-first, 2 sells-first.
     """
     (spacing, nl, inv, geometry, anchor, refresh, volscale, direction, skew,
      invskew, taper, gate, stop, target, trail, breakout, no_new_tail,
@@ -214,7 +210,6 @@ def simulate(a, params, capital, tick, step, min_notional,
         if is_reset:
             inventory_pnl += _flatten(st, held, size, entry, directions, o, taker, slip_bps)
             live[:] = False
-            # Flatten at the open; new quotes wait until the following minute.
             eq[i] = st[0]
             ref = previous_close
             continue
@@ -232,7 +227,7 @@ def simulate(a, params, capital, tick, step, min_notional,
             center -= invskew * spacing_now * previous_close * (st[1] * previous_close / cap)
             for j in range(m):
                 if held[j]:
-                    continue  # Never move an existing lot's exit target.
+                    continue
                 live[j] = False
                 k = j + 1 if j < n else j - n + 1
                 d = directions[j]
@@ -270,8 +265,10 @@ def simulate(a, params, capital, tick, step, min_notional,
                 if switch and a[i, 12] > .5:
                     allowed = 1. if a[i, 11] > 0 else -1.
                 if allowed != 0 and d != allowed:
+                    live[j] = False
                     continue
                 if no_new_tail > 0 and i >= start + (total - start) * (1 - no_new_tail):
+                    live[j] = False
                     continue
             if not live[j]:
                 if (signed_side > 0 and price >= previous_close) or (signed_side < 0 and price <= previous_close):
