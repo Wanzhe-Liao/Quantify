@@ -1,0 +1,43 @@
+name: regime-validation
+
+on:
+  push:
+    branches:
+      - research/closed-market-regime-v2
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run tests
+        run: pytest -q
+      - name: Run ZHONGJI causal regime backtest
+        run: |
+          python scripts/run_regime_backtest.py --symbol ZHONGJIUSDT --observation-minutes 30
+          echo '--- ZHONGJI gate summary ---'
+          cat outputs/ZHONGJIUSDT/regime_v2/gate_summary.csv
+          echo '--- ZHONGJI report ---'
+          cat outputs/ZHONGJIUSDT/regime_v2/report.md
+      - name: Run UNITREE causal regime backtest
+        run: |
+          python scripts/run_regime_backtest.py --symbol UNITREEUSDT --observation-minutes 30
+          echo '--- UNITREE gate summary ---'
+          cat outputs/UNITREEUSDT/regime_v2/gate_summary.csv
+          echo '--- UNITREE report ---'
+          cat outputs/UNITREEUSDT/regime_v2/report.md
+      - name: Upload regime outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: regime-v2-results
+          path: |
+            outputs/ZHONGJIUSDT/regime_v2
+            outputs/UNITREEUSDT/regime_v2
