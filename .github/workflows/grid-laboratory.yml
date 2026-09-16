@@ -1,0 +1,52 @@
+name: grid-laboratory
+on:
+  push:
+    branches: [research/grid-laboratory]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: grid-laboratory-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: pytest -q
+      - name: Export cached research snapshot
+        run: |
+          python - <<'PY'
+          import hashlib, json, shutil
+          from pathlib import Path
+          import pandas as pd
+          root = Path('snapshot')
+          root.mkdir(exist_ok=True)
+          for folder in ('src', 'scripts', 'tests', 'config'):
+              shutil.copytree(folder, root / folder, dirs_exist_ok=True, ignore=shutil.ignore_patterns('__pycache__'))
+          for file in ('README.md', 'requirements.txt'):
+              shutil.copy(file, root / file)
+          (root / 'data').mkdir(exist_ok=True)
+          manifest = {}
+          for f in Path('data').glob('*'):
+              if f.suffix == '.parquet':
+                  df = pd.read_parquet(f)
+                  df.to_csv(root / 'data' / (f.stem + '.csv.gz'), index=False, float_format='%.17g')
+                  manifest[f.name] = {'sha256': hashlib.sha256(f.read_bytes()).hexdigest(), 'rows': len(df), 'columns': list(df.columns)}
+              elif f.suffix == '.json':
+                  shutil.copy(f, root / 'data' / f.name)
+          (root / 'manifest.json').write_text(json.dumps(manifest, indent=2))
+          print(json.dumps(manifest, indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: grid-laboratory-snapshot
+          path: snapshot/
+          if-no-files-found: error
+          retention-days: 14
