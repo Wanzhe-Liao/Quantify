@@ -4,7 +4,7 @@ Status: **retrospective exploratory research**. The Aug 14–Sep 16, 2026 period
 
 ## Scope
 
-The targeted search expands the prior ATR implementation into 870 configurations across 17 dynamic families. It tests:
+The targeted search expands the prior ATR implementation into 870 configurations across 19 dynamic families. It tests:
 
 - ATR10 / ATR30 / ATR60 / ATR120 / EWMA-ATR horizons;
 - ATR multipliers and dynamic spacing caps/floors;
