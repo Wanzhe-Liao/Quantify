@@ -2,6 +2,13 @@ name: grid-laboratory
 on:
   push:
     branches: [research/grid-laboratory]
+    paths:
+      - 'src/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - 'config/**'
+      - 'requirements*.txt'
+      - '.github/workflows/grid-laboratory.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -18,35 +25,30 @@ jobs:
         with:
           python-version: '3.11'
           cache: pip
-      - run: pip install -r requirements.txt
-      - run: pytest -q
-      - name: Export cached research snapshot
+      - name: Install and record environment
         run: |
-          python - <<'PY'
-          import hashlib, json, shutil
-          from pathlib import Path
-          import pandas as pd
-          root = Path('snapshot')
-          root.mkdir(exist_ok=True)
-          for folder in ('src', 'scripts', 'tests', 'config'):
-              shutil.copytree(folder, root / folder, dirs_exist_ok=True, ignore=shutil.ignore_patterns('__pycache__'))
-          for file in ('README.md', 'requirements.txt'):
-              shutil.copy(file, root / file)
-          (root / 'data').mkdir(exist_ok=True)
-          manifest = {}
-          for f in Path('data').glob('*'):
-              if f.suffix == '.parquet':
-                  df = pd.read_parquet(f)
-                  df.to_csv(root / 'data' / (f.stem + '.csv.gz'), index=False, float_format='%.17g')
-                  manifest[f.name] = {'sha256': hashlib.sha256(f.read_bytes()).hexdigest(), 'rows': len(df), 'columns': list(df.columns)}
-              elif f.suffix == '.json':
-                  shutil.copy(f, root / 'data' / f.name)
-          (root / 'manifest.json').write_text(json.dumps(manifest, indent=2))
-          print(json.dumps(manifest, indent=2))
-          PY
+          pip install -r requirements-lab.txt
+          mkdir -p validation
+          pip freeze > validation/requirements.lock.txt
+          git rev-parse HEAD > validation/commit.txt
+      - name: Regression tests
+        run: pytest -q --junitxml=validation/pytest.xml
+      - name: Complete bounded strategy search
+        run: |
+          set -o pipefail
+          python -u scripts/run_grid_lab.py | tee validation/grid_lab.log
+          cat outputs/grid_lab/report.md
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: grid-laboratory-snapshot
-          path: snapshot/
+          name: grid-laboratory-results
+          path: |
+            outputs/grid_lab/
+            validation/
+            src/grid_lab.py
+            scripts/run_grid_lab.py
+            tests/test_grid_lab*.py
+            docs/grid_laboratory.md
+            requirements-lab.txt
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
