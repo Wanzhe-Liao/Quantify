@@ -1,0 +1,37 @@
+name: zhongji-atr-dynamic
+
+on:
+  push:
+    branches: [research/zhongji-atr-dynamic]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements-lab.txt
+      - name: Run tests
+        run: pytest -q
+      - name: Run targeted ZHONGJI ATR laboratory
+        run: |
+          python scripts/run_zhongji_atr_lab.py
+          echo '--- report ---'
+          cat outputs/zhongji_atr_dynamic/report.md
+      - name: Stress frozen lunch ATR candidate
+        run: |
+          python scripts/run_zhongji_atr_stress.py
+          echo '--- lunch execution stress ---'
+          cat outputs/zhongji_atr_dynamic/lunch_candidate_stress.csv
+      - name: Upload research outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhongji-atr-dynamic-results
+          path: outputs/zhongji_atr_dynamic
+          retention-days: 14
